@@ -499,7 +499,31 @@ public final class DBNinja {
 
         //add code to get an order. Remember, an order has pizzas, a customer, and discounts on it
 
-        Order O;
+        Order O = new Order(-1, DineInCustomer(0,0,-1), "NULL");
+        String query = "select * from (ORDERS natural join PIZZA) where ORDER_ID = ?";
+        PreparedStatement stmt = conn.prepareStatement(query);
+        stmt.clearParameters();
+        stmt.setInt(1, ID);
+        try{
+            ResultSet rset = stmt.executeQuery();
+            ICustomer C = getCustomer(rset.getInt(CUSTOMER_ID));
+            O = new Order(rset.getInt(ORDER_ID), C, C.getType());
+            while(rset.next()){
+                Pizza tmp = getPizza(rset.getInt(PIZZA_ID));
+                O.addPizza(tmp);
+            }
+        }
+        catch(SQLException e){
+            System.out.println("Error fetching order");
+            while (e != null) {
+                System.out.println("Message     : " + e.getMessage());
+                e = e.getNextException();
+            }
+
+            //don't leave your connection open!
+            conn.close();
+            return O;
+        }
 
         return O;
 
