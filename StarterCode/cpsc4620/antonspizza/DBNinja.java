@@ -337,23 +337,8 @@ public final class DBNinja {
         try{
             ResultSet rset = stmt.executeQuery(query);
             while(rset.next()){
-                int ID = rset.getInt(1);
-                String name = rset.getString(NAME);
-                String address = rset.getString(ADDRESS);
-                String phone = rset.getString(PHONE_NUMBER);
-                if(address != NULL && phone != NULL){
-                    DeliveryCustomer tmp = new DeliveryCustomer(ID, name, phone, address);
-                    custs.add(tmp);
-                }
-                else if(address == NULL && phone != NULL){
-                    DineOutCustomer tmp = new DineOutCustomer(ID, name, phone);
-                    custs.add(tmp);
-                }
-                else{
-                    String query2 = "select TABLE_NUMBER, SEAT_NUMBER from (ORDERS natural join DINE_IN) natural join SEAT_NUMBER;";
-                    Statement stmt2 = conn.createStatement();
-                    ResultSet rset2 = stmt2.executeQuery(query2);
-                    DineInCustomer tmp = new DineInCustomer(rset2.getInt(1), rset2.getInt(2), ID);
+                ICustomer tmp = getCustomer(rset.getInt(CUSTOMER_ID));
+                if(tmp.getID() > 0){
                     custs.add(tmp);
                 }
             }
@@ -426,10 +411,7 @@ public final class DBNinja {
 
     private static Discount getDiscount(int ID)  throws SQLException, IOException
     {
-
-        //add code to get a discount
-
-        String query = "select * from DISCOUNTS when DISCOUNT_ID = '?';";
+        String query = "select * from DISCOUNTS when DISCOUNT_ID = ?;";
         PreparedStatement stmt = conn.prepareStatement(query);
         stmt.clearParameters();
         stmt.setInt(1, ID);
@@ -451,34 +433,71 @@ public final class DBNinja {
 
     }
 
-    private static Pizza getPizza()  throws SQLException, IOException
+    private static Pizza getPizza(int ID)  throws SQLException, IOException
     {
 
         //add code to get Pizza Remember, a Pizza has toppings and discounts on it
-        Pizza P;
-
+        Pizza P = new Pizza(-1, "fake", "NULL", 0.0);
+        String query = "select * from PIZZA natural join BASE_PRICE where PIZZA_ID = ?;";
+        PreparedStatement stmt = conn.prepareStatement(query);
+        stmt.clearParameters();
+        stmt.setInt(1, ID);
+        try{
+            ResultSet rset = stmt.executeQuery();
+            P = new Pizza(rset.getInt(PIZZA_ID), rset.getString(SIZE), rset.getString(CRUST_TYPE), rset.getDouble(PRICE));
+        }
+        catch(SQLException e){
+            System.out.println("Error getting pizza");
+            while (e != null) {
+                System.out.println("Message     : " + e.getMessage());
+                e = e.getNextException();
+            }
+            conn.close();
+            return P;
+        }
         return P;
-
     }
 
-    private static ICustomer getCustomer()  throws SQLException, IOException
+    private static ICustomer getCustomer(int ID)  throws SQLException, IOException
     {
+        ICustomer C = new ICustomer(){};
+        String query = "select * from (CUSTOMER natural join DELIVERY) natural join PICK_UP where CUSTOMER_ID = ?;";
+        Statement stmt = conn.createStatement();
+        try{
+            ResultSet rset = stmt.executeQuery(query);
+            while(rset.next()){
+                String name = rset.getString(NAME);
+                String address = rset.getString(ADDRESS);
+                String phone = rset.getString(PHONE_NUMBER);
+                if(address != NULL && phone != NULL){
+                    C = new DeliveryCustomer(ID, name, phone, address);
+                }
+                else if(address == NULL && phone != NULL){
+                    C = new DineOutCustomer(ID, name, phone);
+                }
+                else{
+                    C = new DineInCustomer(rset2.getInt(TABLE_NUMBER), rset2.getInt(SEAT_NUMBER), ID);
+                }
+            }
+        }
+        catch(SQLException e){
+            System.out.println("Error loading Customers");
+            while (e != null) {
+                System.out.println("Message     : " + e.getMessage());
+                e = e.getNextException();
+            }
 
-        //add code to get customer
-
-
-        ICustomer C;
-
+            //don't leave your connection open!
+            conn.close();
+            return C;
+        }
         return C;
-
-
     }
 
-    private static Order getOrder()  throws SQLException, IOException
+    private static Order getOrder(int ID)  throws SQLException, IOException
     {
 
         //add code to get an order. Remember, an order has pizzas, a customer, and discounts on it
-
 
         Order O;
 
